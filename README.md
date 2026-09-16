@@ -19,6 +19,18 @@ Zero dependencies. Pure Python standard library + one HTML file.
   `=AVERAGE(A1:A5)`), CSV import/export, saves JSON.
 - **Stage** — slide decks, fullscreen present mode (←/→), saves JSON.
 
+## Pictures
+
+Quill (🖼 button) and Stage (🖼 per slide) search free images via
+`GET /api/images?q=...`:
+
+| Source | Key needed? |
+|---|---|
+| Wikimedia Commons | No — built in |
+| Openverse (Flickr & friends) | No — built in |
+| Google Custom Search | Optional — set `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX` |
+| Pinterest | Not possible — Pinterest offers no public search API |
+
 ## Files
 
 | File | Purpose |

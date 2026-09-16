@@ -29,6 +29,7 @@ table.grid td input.fx{color:var(--cy)}
 #present{position:fixed;inset:0;background:#02080f;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:50}
 #present.show{display:flex}
 #present h1{color:var(--cy);font-size:8vw;margin:0 0 20px}
+#present img{max-height:45vh;max-width:80vw;border-radius:8px;margin-bottom:16px}
 #present p{font-size:3vw;white-space:pre-wrap;text-align:center;padding:0 8vw}
 .row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
 .row input[type=text]{background:var(--panel);border:1px solid var(--cy);color:var(--tx);padding:6px;border-radius:5px}
@@ -61,6 +62,12 @@ table.grid td input.fx{color:var(--cy)}
 <button onclick="fmt('justifyLeft')">⇤</button>
 <button onclick="fmt('justifyCenter')">⇔</button>
 <button onclick="fmt('removeFormat')">✕ fmt</button>
+<button onclick="qimage()">🖼 Image</button>
+</div>
+<div id="imgpick" style="display:none;border:1px solid var(--cy);border-radius:8px;padding:10px;margin-bottom:8px;background:#061627">
+<div class="row"><input type="text" id="imgq" placeholder="search pictures…"><button onclick="imggo()">Search</button><button onclick="document.getElementById('imgpick').style.display='none'">✕</button></div>
+<div id="imgres" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+<span class="hint">Free sources: Wikimedia Commons + Openverse. Google plugs in with a GOOGLE_CSE_KEY.</span>
 </div>
 <div class="row">
 <input type="text" id="qname" placeholder="document name…" value="untitled.quill.html">
@@ -101,7 +108,7 @@ table.grid td input.fx{color:var(--cy)}
 <div id="slides"></div>
 </section>
 </main>
-<div id="present" onclick="this.classList.remove('show')"><h1 id="pTitle"></h1><p id="pBody"></p><span class="hint">click or ←/→ to navigate, Esc to exit</span></div>
+<div id="present" onclick="this.classList.remove('show')"><h1 id="pTitle"></h1><img id="pImg" style="display:none"><p id="pBody"></p><span class="hint">click or ←/→ to navigate, Esc to exit</span></div>
 <script>
 /* ---------- shell ---------- */
 function tab(t){for(const k of['Q','L','S']){document.getElementById('tab'+k).classList.toggle('on',k===t);document.getElementById('t'+k).classList.toggle('on',k===t);}}
@@ -117,6 +124,8 @@ function qnew(){if(confirm('Discard current document?')){quill.innerHTML='<h1>Un
 async function qsave(){const n=document.getElementById('qname').value;await api('/api/save',{name:n,content:quill.innerHTML});stat('Saved '+n);}
 async function qload(){const n=prompt('Open file name:','untitled.quill.html');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){quill.innerHTML=r.content;document.getElementById('qname').value=n;qcount();stat('Opened '+n);}else stat('Not found: '+n);}
 function qexport(t){const n=document.getElementById('qname').value.replace(/\.\w+$/,'');if(t==='html')dl(n+'.html','<!DOCTYPE html><meta charset=utf8><title>'+n+'</title>'+quill.innerHTML,'text/html');else dl(n+'.txt',quill.innerText);}
+async function qimage(){const box=document.getElementById('imgpick');box.style.display=box.style.display==='none'?'block':'none';if(box.style.display==='block')imggo();}
+async function imggo(){const q=document.getElementById('imgq').value||'nature';const r=await api('/api/images?q='+encodeURIComponent(q)+'&n=8');const d=document.getElementById('imgres');d.innerHTML='';(r.results||[]).forEach(im=>{const t=document.createElement('img');t.src=im.url;t.title=im.title||'';t.style.cssText='width:120px;height:90px;object-fit:cover;cursor:pointer;border-radius:5px;border:1px solid var(--cy)';t.onclick=()=>{quill.focus();document.execCommand('insertImage',false,im.url);d.innerHTML='';document.getElementById('imgpick').style.display='none';};d.appendChild(t);});if(!(r.results||[]).length)d.textContent='No pictures found.';}
 /* ---------- LEDGER ---------- */
 const RC=50,CC=26;let L={};
 function col(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
@@ -138,14 +147,15 @@ function lcsv(d){if(d==='out'){let s='';for(let r=1;r<=RC;r++){const row=[];for(
 function limport(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{L={};const rows=rd.result.split(/\r?\n/);rows.forEach((line,r)=>{if(!line.trim())return;line.split(',').forEach((cell,c)=>{cell=cell.replace(/^"|"$/g,'').replace(/""/g,'"');if(cell)L[col(c)+(r+1)]=cell;});});build();for(const[id,v]of Object.entries(L)){const el=document.querySelector('input[data-id="'+id+'"]');if(el)el.value=v;}recalc();stat('Imported '+f.name);};rd.readAsText(f);inp.value='';}
 /* ---------- STAGE ---------- */
 let S=[{t:'DESK Stage',b:'Press ▶ Present to begin.\nClick or use arrow keys.'}],si=0;
-function srender(){const d=document.getElementById('slides');d.innerHTML='';S.forEach((s,i)=>{const dv=document.createElement('div');dv.className='slide';dv.innerHTML='<b>Slide '+(i+1)+'</b> <button onclick="sdel('+i+')">✕</button><input value="'+s.t.replace(/"/g,'&quot;')+'" oninput="S['+i+'].t=this.value" placeholder="Title"><textarea rows="4" oninput="S['+i+'].b=this.value" placeholder="Body">'+s.b+'</textarea>';d.appendChild(dv);});}
+function srender(){const d=document.getElementById('slides');d.innerHTML='';S.forEach((s,i)=>{const dv=document.createElement('div');dv.className='slide';dv.innerHTML='<b>Slide '+(i+1)+'</b> <button onclick="sdel('+i+')">✕</button><input value="'+(s.t||'').replace(/"/g,'&quot;')+'" oninput="S['+i+'].t=this.value" placeholder="Title"><textarea rows="4" oninput="S['+i+'].b=this.value" placeholder="Body">'+(s.b||'')+'</textarea><div class="row"><input placeholder="image URL (optional)" value="'+((s.img||'').replace(/"/g,'&quot;'))+'" oninput="S['+i+'].img=this.value" style="flex:1"><button onclick="simg('+i+')">🖼 Search</button></div>';d.appendChild(dv);});}
+async function simg(i){const q=prompt('Search pictures for slide '+(i+1)+':','');if(!q)return;const r=await api('/api/images?q='+encodeURIComponent(q)+'&n=1');if(r.results&&r.results[0]){S[i].img=r.results[0].url;srender();stat('Image added: '+(r.results[0].title||''));}else stat('No pictures found.');}
 function sadd(){S.push({t:'New slide',b:''});srender();}
 function sdel(i){if(S.length>1){S.splice(i,1);srender();}}
 function snew(){if(confirm('Discard deck?')){S=[{t:'',b:''}];srender();}}
 async function ssave(){const n=document.getElementById('sname').value;await api('/api/save',{name:n,content:JSON.stringify(S)});stat('Saved '+n);}
 async function sload(){const n=prompt('Open deck:','untitled.stage.json');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){try{S=JSON.parse(r.content);}catch(_){}document.getElementById('sname').value=n;srender();stat('Opened '+n);}else stat('Not found');}
 function spresent(){si=0;pshow();document.getElementById('present').classList.add('show');}
-function pshow(){document.getElementById('pTitle').textContent=S[si].t;document.getElementById('pBody').textContent=S[si].b;}
+function pshow(){document.getElementById('pTitle').textContent=S[si].t;document.getElementById('pBody').textContent=S[si].b;const im=document.getElementById('pImg');if(S[si].img){im.src=S[si].img;im.style.display='block';}else{im.removeAttribute('src');im.style.display='none';}}
 addEventListener('keydown',e=>{const p=document.getElementById('present');if(!p.classList.contains('show'))return;if(e.key==='ArrowRight'){si=Math.min(S.length-1,si+1);pshow();}if(e.key==='ArrowLeft'){si=Math.max(0,si-1);pshow();}if(e.key==='Escape')p.classList.remove('show');});
 srender();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}

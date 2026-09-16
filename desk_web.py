@@ -16,8 +16,9 @@ import argparse
 import json
 import os
 import re
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs, unquote
+from urllib.parse import urlparse, parse_qs, unquote, quote
 
 HOME = os.path.expanduser("~")
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +33,69 @@ def _safe_path(name):
     if not SAFE_NAME.match(name):
         return None
     return os.path.join(DOCS_DIR, name)
+
+
+# ---------------------------------------------------------------------------
+# Image search — pictures for Quill & Stage.
+# Keyless by default (Wikimedia Commons + Openverse, both free, no signup).
+# Google Custom Search plugs in when GOOGLE_CSE_KEY + GOOGLE_CSE_CX are set
+# (needs a Google Cloud key — paid after the free quota). Pinterest offers no
+# public search API, so it cannot be wired directly.
+# ---------------------------------------------------------------------------
+
+def _fetch_json(url, timeout=6.0):
+    req = urllib.request.Request(url, headers={"User-Agent": "DESK-Office/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", "replace") or "{}")
+
+
+def image_search_wikimedia(q, n=6):
+    api = ("https://commons.wikimedia.org/w/api.php?action=query&format=json"
+           "&generator=search&gsrsearch=" + quote(q) + "&gsrnamespace=6"
+           "&gsrlimit=" + str(min(n, 20)) + "&prop=imageinfo"
+           "&iiprop=url%7Csize%7Cmime&iiurlwidth=640")
+    try:
+        data = _fetch_json(api)
+    except Exception:
+        return []
+    out = []
+    for page in (data.get("query") or {}).get("pages", {}).values():
+        info = (page.get("imageinfo") or [{}])[0]
+        url = info.get("thumburl") or info.get("url")
+        if url:
+            out.append({"title": page.get("title", "").replace("File:", ""),
+                        "url": url, "source": "wikimedia"})
+    return out[:n]
+
+
+def image_search_openverse(q, n=6):
+    api = "https://api.openverse.org/v1/images/?q=" + quote(q) + "&page_size=" + str(min(n, 20))
+    try:
+        data = _fetch_json(api)
+    except Exception:
+        return []
+    out = []
+    for it in data.get("results", [])[:n]:
+        if it.get("url"):
+            out.append({"title": it.get("title") or q, "url": it["url"],
+                        "source": "openverse",
+                        "page": it.get("foreign_landing_url", "")})
+    return out
+
+
+def image_search_google(q, n=6):
+    key, cx = os.environ.get("GOOGLE_CSE_KEY", ""), os.environ.get("GOOGLE_CSE_CX", "")
+    if not (key and cx):
+        return None  # not configured — caller reports google:false
+    api = ("https://www.googleapis.com/customsearch/v1?key=" + quote(key)
+           + "&cx=" + quote(cx) + "&searchType=image&num=" + str(min(max(n, 1), 10))
+           + "&q=" + quote(q))
+    try:
+        data = _fetch_json(api)
+    except Exception:
+        return []
+    return [{"title": it.get("title", q), "url": it.get("link", ""),
+             "source": "google"} for it in data.get("items", []) if it.get("link")]
 
 
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript",
@@ -86,6 +150,23 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "bad name"}, 400)
             with open(fp, "r", errors="replace") as f:
                 return self._json({"name": name, "content": f.read()})
+        if path == "/api/images":
+            qs = parse_qs(parsed.query)
+            q = (qs.get("q") or [""])[0].strip()[:200]
+            if not q:
+                return self._json({"error": "missing q"}, 400)
+            try:
+                n = min(max(int((qs.get("n") or ["8"])[0]), 1), 15)
+            except ValueError:
+                n = 8
+            results = image_search_wikimedia(q, n)
+            if len(results) < n:
+                results += image_search_openverse(q, n - len(results))
+            google = image_search_google(q, n)
+            return self._json({"query": q, "results": results,
+                               "sources": {"wikimedia_openverse": len(results),
+                                           "google": False if google is None else len(google),
+                                           "google_results": google or []}})
         return self._json({"error": "not found"}, 404)
 
     def do_POST(self):

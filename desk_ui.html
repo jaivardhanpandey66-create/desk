@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DESK — Quill · Ledger · Stage</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+:root{--cy:#00f7ff;--bg:#04101f;--panel:#0a1c33;--tx:#cfe9ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif}
+header{display:flex;gap:12px;align-items:center;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--cy)}
+header h1{font-size:18px;margin:0;color:var(--cy);letter-spacing:2px}
+nav{display:flex;gap:6px}nav button{background:transparent;border:1px solid var(--cy);color:var(--tx);padding:6px 14px;border-radius:6px;cursor:pointer}
+nav button.on{background:var(--cy);color:#04101f;font-weight:700}
+main{padding:14px;max-width:1100px;margin:auto}
+.tab{display:none}.tab.on{display:block}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.toolbar button,.toolbar select{background:var(--panel);border:1px solid var(--cy);color:var(--tx);padding:5px 10px;border-radius:5px;cursor:pointer}
+#quill{border:1px solid var(--cy);border-radius:8px;min-height:50vh;padding:16px;background:#061627;color:#eaf6ff;outline:none}
+#quill h1,#quill h2{color:var(--cy)}
+table.grid{border-collapse:collapse;background:#061627}
+table.grid td,table.grid th{border:1px solid #1c4b6e;min-width:80px;padding:2px}
+table.grid th{background:var(--panel);color:var(--cy);font-size:11px}
+table.grid td input{width:100%;background:transparent;border:none;color:#eaf6ff;outline:none;padding:4px}
+table.grid td input.fx{color:var(--cy)}
+#fxbar{width:100%;margin-bottom:8px;background:var(--panel);border:1px solid var(--cy);color:var(--tx);padding:6px;border-radius:5px}
+.slide{border:1px solid var(--cy);border-radius:8px;padding:20px;background:#061627;margin-bottom:10px}
+.slide input,.slide textarea{width:100%;background:var(--panel);border:1px solid #1c4b6e;color:#eaf6ff;border-radius:5px;padding:8px;margin:4px 0}
+#present{position:fixed;inset:0;background:#02080f;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:50}
+#present.show{display:flex}
+#present h1{color:var(--cy);font-size:8vw;margin:0 0 20px}
+#present p{font-size:3vw;white-space:pre-wrap;text-align:center;padding:0 8vw}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.row input[type=text]{background:var(--panel);border:1px solid var(--cy);color:var(--tx);padding:6px;border-radius:5px}
+.hint{opacity:.6;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+<h1>◈ DESK</h1>
+<nav>
+<button id="tQ" class="on" onclick="tab('Q')">✒ Quill</button>
+<button id="tL" onclick="tab('L')">▦ Ledger</button>
+<button id="tS" onclick="tab('S')">◉ Stage</button>
+</nav>
+<span class="hint" id="stat"></span>
+</header>
+<main>
+<!-- QUILL -->
+<section class="tab on" id="tabQ">
+<div class="toolbar">
+<button onclick="fmt('bold')"><b>B</b></button>
+<button onclick="fmt('italic')"><i>I</i></button>
+<button onclick="fmt('underline')"><u>U</u></button>
+<button onclick="fmt('strikeThrough')">S</button>
+<button onclick="fmt('formatBlock','h1')">H1</button>
+<button onclick="fmt('formatBlock','h2')">H2</button>
+<button onclick="fmt('formatBlock','p')">¶</button>
+<button onclick="fmt('insertUnorderedList')">• list</button>
+<button onclick="fmt('insertOrderedList')">1. list</button>
+<button onclick="fmt('justifyLeft')">⇤</button>
+<button onclick="fmt('justifyCenter')">⇔</button>
+<button onclick="fmt('removeFormat')">✕ fmt</button>
+</div>
+<div class="row">
+<input type="text" id="qname" placeholder="document name…" value="untitled.quill.html">
+<button onclick="qsave()">💾 Save</button>
+<button onclick="qload()">📂 Open</button>
+<button onclick="qexport('html')">⬇ HTML</button>
+<button onclick="qexport('txt')">⬇ TXT</button>
+<button onclick="qnew()">＋ New</button>
+<span class="hint" id="qcount"></span>
+</div>
+<div id="quill" contenteditable="true"><h1>Untitled document</h1><p>Start writing, Mr Jai…</p></div>
+</section>
+<!-- LEDGER -->
+<section class="tab" id="tabL">
+<div class="row">
+<input type="text" id="lname" placeholder="sheet name…" value="untitled.ledger.json">
+<button onclick="lsave()">💾 Save</button>
+<button onclick="lload()">📂 Open</button>
+<button onclick="lcsv('out')">⬇ CSV</button>
+<button onclick="lcsv('in')">⬆ CSV</button>
+<button onclick="lnew()">＋ New</button>
+<input type="file" id="csvfile" accept=".csv" style="display:none" onchange="limport(this)">
+<span class="hint">Formulas: =A1+B2, =SUM(A1:A5), =AVERAGE(A1:A5)</span>
+</div>
+<input id="fxbar" placeholder="fx — select a cell…" onkeydown="if(event.key==='Enter')fxset(this.value)">
+<div style="overflow:auto;max-height:60vh"><table class="grid" id="grid"></table></div>
+</section>
+<!-- STAGE -->
+<section class="tab" id="tabS">
+<div class="row">
+<input type="text" id="sname" placeholder="deck name…" value="untitled.stage.json">
+<button onclick="ssave()">💾 Save</button>
+<button onclick="sload()">📂 Open</button>
+<button onclick="sadd()">＋ Slide</button>
+<button onclick="spresent()">▶ Present</button>
+<button onclick="snew()">＋ New deck</button>
+</div>
+<div id="slides"></div>
+</section>
+</main>
+<div id="present" onclick="this.classList.remove('show')"><h1 id="pTitle"></h1><p id="pBody"></p><span class="hint">click or ←/→ to navigate, Esc to exit</span></div>
+<script>
+/* ---------- shell ---------- */
+function tab(t){for(const k of['Q','L','S']){document.getElementById('tab'+k).classList.toggle('on',k===t);document.getElementById('t'+k).classList.toggle('on',k===t);}}
+async function api(path,body){const o=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};const r=await fetch(path,o);return r.json();}
+function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'text/plain'}));a.download=name;a.click();}
+function stat(m){document.getElementById('stat').textContent=m;}
+/* ---------- QUILL ---------- */
+const quill=document.getElementById('quill');
+function fmt(c,v){document.execCommand(c,false,v||null);quill.focus();qcount();}
+function qcount(){document.getElementById('qcount').textContent=(quill.innerText.trim().split(/\s+/).filter(Boolean).length||0)+' words';}
+quill.addEventListener('input',qcount);qcount();
+function qnew(){if(confirm('Discard current document?')){quill.innerHTML='<h1>Untitled document</h1><p></p>';qcount();}}
+async function qsave(){const n=document.getElementById('qname').value;await api('/api/save',{name:n,content:quill.innerHTML});stat('Saved '+n);}
+async function qload(){const n=prompt('Open file name:','untitled.quill.html');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){quill.innerHTML=r.content;document.getElementById('qname').value=n;qcount();stat('Opened '+n);}else stat('Not found: '+n);}
+function qexport(t){const n=document.getElementById('qname').value.replace(/\.\w+$/,'');if(t==='html')dl(n+'.html','<!DOCTYPE html><meta charset=utf8><title>'+n+'</title>'+quill.innerHTML,'text/html');else dl(n+'.txt',quill.innerText);}
+/* ---------- LEDGER ---------- */
+const RC=50,CC=26;let L={};
+function col(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
+function build(){const g=document.getElementById('grid');g.innerHTML='';let h='<tr><th></th>';for(let c=0;c<CC;c++)h+='<th>'+col(c)+'</th>';h+='</tr>';for(let r=1;r<=RC;r++){h+='<tr><th>'+r+'</th>';for(let c=0;c<CC;c++){const id=col(c)+r;h+='<td><input data-id="'+id+'" value="" onfocus="fxshow(this)" oninput="lset(this)"></td>';}h+='</tr>';}g.innerHTML=h;}
+function lset(el){L[el.dataset.id]=el.value;el.classList.toggle('fx',(el.value||'')[0]==='=');}
+let cur=null;
+function fxshow(el){cur=el;document.getElementById('fxbar').value=el.value;}
+function fxset(v){if(cur){cur.value=v;lset(cur);}recalc();}
+function val(id){const raw=L[id];if(raw===undefined||raw==='')return 0;if(raw[0]!=='=')return isNaN(+raw)?0:+raw;return calc(raw.slice(1));}
+function calc(e){try{e=e.replace(/([A-Z]+[0-9]+)(:([A-Z]+[0-9]+))?/g,(m,a,b,c)=>{if(c){const r=range(a,c).reduce((s,id)=>s+ +val(id)||0,0);return '('+r+')';}const v=val(a);return '('+(typeof v==='number'?v:0)+')';});e=e.replace(/SUM\(([^)]+)\)/gi,'($1)').replace(/AVERAGE\(([^)]+)\)/gi,(m,g)=>{const ids=g.match(/[A-Z]+[0-9]+/g)||[];const s=ids.reduce((x,id)=>x+(+val(id)||0),0);return '('+(ids.length?s/ids.length:0)+')';});return Function('"use strict";return('+e+')')();}catch(_){return '#ERR';}}
+function range(a,b){const out=[];const c1=a.match(/([A-Z]+)([0-9]+)/),c2=b.match(/([A-Z]+)([0-9]+)/);const ci=s=>{let n=0;for(const ch of s)n=n*26+ch.charCodeAt(0)-64;return n;};for(let c=ci(c1[1]);c<=ci(c2[1]);c++)for(let r=+c1[2];r<=+c2[2];r++){let s='',n=c;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}out.push(s+r);}return out;}
+function recalc(){document.querySelectorAll('#grid input').forEach(el=>{const raw=L[el.dataset.id]||'';if(raw[0]==='='){const v=calc(raw.slice(1));el.placeholder=String(v);}else el.placeholder='';});}
+document.getElementById('grid')?.addEventListener('change',recalc);
+build();
+function lnew(){if(confirm('Discard current sheet?')){L={};build();}}
+async function lsave(){const n=document.getElementById('lname').value;await api('/api/save',{name:n,content:JSON.stringify(L)});stat('Saved '+n);}
+async function lload(){const n=prompt('Open sheet:','untitled.ledger.json');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){try{L=JSON.parse(r.content);}catch(_){L={};}build();for(const[id,v]of Object.entries(L)){const el=document.querySelector('input[data-id="'+id+'"]');if(el){el.value=v;el.classList.toggle('fx',v[0]==='=');}}recalc();document.getElementById('lname').value=n;stat('Opened '+n);}else stat('Not found');}
+function lcsv(d){if(d==='out'){let s='';for(let r=1;r<=RC;r++){const row=[];for(let c=0;c<CC;c++){const id=col(c)+r,raw=L[id]||'';row.push(raw[0]==='='?calc(raw.slice(1)):raw);}while(row.length&&row[row.length-1]==='')row.pop();if(row.length)s+=row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')+'\n';}dl(document.getElementById('lname').value.replace(/\.\w+$/,'')+'.csv',s,'text/csv');}else document.getElementById('csvfile').click();}
+function limport(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{L={};const rows=rd.result.split(/\r?\n/);rows.forEach((line,r)=>{if(!line.trim())return;line.split(',').forEach((cell,c)=>{cell=cell.replace(/^"|"$/g,'').replace(/""/g,'"');if(cell)L[col(c)+(r+1)]=cell;});});build();for(const[id,v]of Object.entries(L)){const el=document.querySelector('input[data-id="'+id+'"]');if(el)el.value=v;}recalc();stat('Imported '+f.name);};rd.readAsText(f);inp.value='';}
+/* ---------- STAGE ---------- */
+let S=[{t:'DESK Stage',b:'Press ▶ Present to begin.\nClick or use arrow keys.'}],si=0;
+function srender(){const d=document.getElementById('slides');d.innerHTML='';S.forEach((s,i)=>{const dv=document.createElement('div');dv.className='slide';dv.innerHTML='<b>Slide '+(i+1)+'</b> <button onclick="sdel('+i+')">✕</button><input value="'+s.t.replace(/"/g,'&quot;')+'" oninput="S['+i+'].t=this.value" placeholder="Title"><textarea rows="4" oninput="S['+i+'].b=this.value" placeholder="Body">'+s.b+'</textarea>';d.appendChild(dv);});}
+function sadd(){S.push({t:'New slide',b:''});srender();}
+function sdel(i){if(S.length>1){S.splice(i,1);srender();}}
+function snew(){if(confirm('Discard deck?')){S=[{t:'',b:''}];srender();}}
+async function ssave(){const n=document.getElementById('sname').value;await api('/api/save',{name:n,content:JSON.stringify(S)});stat('Saved '+n);}
+async function sload(){const n=prompt('Open deck:','untitled.stage.json');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){try{S=JSON.parse(r.content);}catch(_){}document.getElementById('sname').value=n;srender();stat('Opened '+n);}else stat('Not found');}
+function spresent(){si=0;pshow();document.getElementById('present').classList.add('show');}
+function pshow(){document.getElementById('pTitle').textContent=S[si].t;document.getElementById('pBody').textContent=S[si].b;}
+addEventListener('keydown',e=>{const p=document.getElementById('present');if(!p.classList.contains('show'))return;if(e.key==='ArrowRight'){si=Math.min(S.length-1,si+1);pshow();}if(e.key==='ArrowLeft'){si=Math.max(0,si-1);pshow();}if(e.key==='Escape')p.classList.remove('show');});
+srender();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+</script>
+</body>
+</html>

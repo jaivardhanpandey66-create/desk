@@ -40,7 +40,20 @@ def main():
     win.set_default_size(1200, 800)
     win.connect("destroy", Gtk.main_quit)
     view = WebKit2.WebView()
-    view.load_uri(f"http://127.0.0.1:{PORT}/")
+    uri = f"http://127.0.0.1:{PORT}/"
+    # Double-clicked file from the file manager → open it in the right app
+    for arg in sys.argv[1:]:
+        if os.path.isfile(arg):
+            import shutil
+            import urllib.parse
+            docs = os.path.join(os.path.expanduser("~"), "Documents", "Desk")
+            os.makedirs(docs, exist_ok=True)
+            dest = os.path.join(docs, os.path.basename(arg))
+            if os.path.abspath(arg) != os.path.abspath(dest):
+                shutil.copy(arg, dest)
+            uri += "?open=" + urllib.parse.quote(os.path.basename(arg))
+            break
+    view.load_uri(uri)
     win.add(view)
     win.show_all()
     Gtk.main()

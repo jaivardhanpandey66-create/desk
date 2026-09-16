@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-desk-quill">
+    <comment>DESK Quill document</comment>
+    <magic priority="60">
+      <match value="&lt;!--DESK-QUILL--&gt;" type="string" offset="0"/>
+    </magic>
+    <glob pattern="*.quill.html"/>
+  </mime-type>
+  <mime-type type="application/x-desk-ledger">
+    <comment>DESK Ledger spreadsheet</comment>
+    <magic priority="60">
+      <match value="DESK-LEDGER" type="string" offset="0"/>
+    </magic>
+    <glob pattern="*.ledger"/>
+  </mime-type>
+  <mime-type type="application/x-desk-stage">
+    <comment>DESK Stage presentation</comment>
+    <magic priority="60">
+      <match value="DESK-STAGE" type="string" offset="0"/>
+    </magic>
+    <glob pattern="*.stage"/>
+  </mime-type>
+</mime-info>

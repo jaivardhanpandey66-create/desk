@@ -1,8 +1,9 @@
 [Desktop Entry]
 Name=DESK Office
 Comment=Holographic office suite — Quill, Ledger, Stage
-Exec=python3 %h/.local/share/desk/desk_app.py
+Exec=python3 %h/.local/share/desk/desk_app.py %F
 Icon=%h/.local/share/desk/desk.svg
 Terminal=false
 Type=Application
 Categories=Office;
+MimeType=application/x-desk-quill;application/x-desk-ledger;application/x-desk-stage;

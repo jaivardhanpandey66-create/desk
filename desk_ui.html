@@ -92,7 +92,7 @@ table.grid td input.fx{color:#0b3d91}
 <!-- LEDGER -->
 <section class="tab" id="tabL">
 <div class="row">
-<input type="text" id="lname" placeholder="sheet name…" value="untitled.ledger.json">
+<input type="text" id="lname" placeholder="sheet name…" value="untitled.ledger">
 <button onclick="lsave()">💾 Save</button>
 <select id="lfiles" title="Ledger sheets"></select>
 <button onclick="lrefresh()">⟳</button>
@@ -109,7 +109,7 @@ table.grid td input.fx{color:#0b3d91}
 <!-- STAGE -->
 <section class="tab" id="tabS">
 <div class="row">
-<input type="text" id="sname" placeholder="deck name…" value="untitled.stage.json">
+<input type="text" id="sname" placeholder="deck name…" value="untitled.stage">
 <button onclick="ssave()">💾 Save</button>
 <select id="sfiles" title="Stage decks"></select>
 <button onclick="srefresh()">⟳</button>
@@ -131,8 +131,8 @@ function stat(m){document.getElementById('stat').textContent=m;}
 /* ---------- files: extensions + per-app browser ---------- */
 function ext(name,def){name=(name||'').trim()||'untitled';if(!/\.[A-Za-z0-9]{1,8}$/.test(name))name+='.'+def;return name;}
 async function flist(sel,rx){try{const r=await api('/api/files');const s=document.getElementById(sel);const cur=s.value;s.innerHTML='';(r.files||[]).filter(f=>rx.test(f)).forEach(f=>{const o=document.createElement('option');o.value=o.textContent=f;s.appendChild(o);});if(cur&&[...s.options].some(o=>o.value===cur))s.value=cur;}catch(_){}}
-function refreshAll(){flist('qfiles',/\.quill\.html?$/i);flist('lfiles',/\.ledger\.json$/i);flist('sfiles',/\.stage\.json$/i);}
-function qrefresh(){flist('qfiles',/\.quill\.html?$/i);}function lrefresh(){flist('lfiles',/\.ledger\.json$/i);}function srefresh(){flist('sfiles',/\.stage\.json$/i);}
+function refreshAll(){flist('qfiles',/\.quill\.html?$/i);flist('lfiles',/\.ledger(\.json)?$/i);flist('sfiles',/\.stage(\.json)?$/i);}
+function qrefresh(){flist('qfiles',/\.quill\.html?$/i);}function lrefresh(){flist('lfiles',/\.ledger(\.json)?$/i);}function srefresh(){flist('sfiles',/\.stage(\.json)?$/i);}
 function pick(sel,def){const s=document.getElementById(sel);if(s.value)return s.value;const n=prompt('File name:');return n?ext(n,def):'';}
 refreshAll();
 /* ---------- zoom ---------- */
@@ -148,8 +148,9 @@ function fmt(c,v){document.execCommand(c,false,v||null);quill.focus();qcount();}
 function qcount(){document.getElementById('qcount').textContent=(quill.innerText.trim().split(/\s+/).filter(Boolean).length||0)+' words';}
 quill.addEventListener('input',qcount);qcount();
 function qnew(){if(confirm('Discard current document?')){quill.innerHTML='<h1>Untitled document</h1><p></p>';qcount();}}
-async function qsave(){const n=ext(document.getElementById('qname').value,'quill.html');document.getElementById('qname').value=n;await api('/api/save',{name:n,content:quill.innerHTML});qrefresh();stat('Saved '+n);}
-async function qload(){const n=pick('qfiles','quill.html')||document.getElementById('qname').value;if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){quill.innerHTML=r.content;document.getElementById('qname').value=n;qcount();stat('Opened '+n);}else stat('Not found: '+n);}
+async function qsave(){stat('Saving…');try{const n=ext(document.getElementById('qname').value,'quill.html');document.getElementById('qname').value=n;let html=quill.innerHTML;if(html.indexOf('DESK-QUILL')!==0)html='<!--DESK-QUILL-->'+html;const r=await api('/api/save',{name:n,content:html});if(r.ok){qrefresh();stat('Saved '+n);}else stat('Save failed: '+(r.error||'unknown'));}catch(e){stat('Save failed: '+e);}}
+async function qload(){const n=pick('qfiles','quill.html')||document.getElementById('qname').value;if(n)qloadN(n);}
+async function qloadN(n){try{const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){quill.innerHTML=r.content;document.getElementById('qname').value=n;qcount();stat('Opened '+n);}else stat('Not found: '+n);}catch(e){stat('Open failed: '+e);}}
 function qexport(t){const n=document.getElementById('qname').value.replace(/\.\w+$/,'');if(t==='html')dl(n+'.html','<!DOCTYPE html><meta charset=utf8><title>'+n+'</title>'+quill.innerHTML,'text/html');else dl(n+'.txt',quill.innerText);}
 async function qimage(){const box=document.getElementById('imgpick');box.style.display=box.style.display==='none'?'block':'none';if(box.style.display==='block')imggo();}
 function px(u){return u.indexOf('data:')===0?u:'/api/img?url='+encodeURIComponent(u);}
@@ -170,8 +171,9 @@ function recalc(){document.querySelectorAll('#grid input').forEach(el=>{const ra
 document.getElementById('grid')?.addEventListener('change',recalc);
 build();
 function lnew(){if(confirm('Discard current sheet?')){L={};build();}}
-async function lsave(){const n=ext(document.getElementById('lname').value,'ledger.json');document.getElementById('lname').value=n;await api('/api/save',{name:n,content:JSON.stringify(L)});lrefresh();stat('Saved '+n);}
-async function lload(){const n=pick('lfiles','ledger.json');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){try{L=JSON.parse(r.content);}catch(_){L={};}build();for(const[id,v]of Object.entries(L)){const el=document.querySelector('input[data-id="'+id+'"]');if(el){el.value=v;el.classList.toggle('fx',v[0]==='=');}}recalc();document.getElementById('lname').value=n;stat('Opened '+n);}else stat('Not found');}
+async function lsave(){stat('Saving…');try{const n=ext(document.getElementById('lname').value,'ledger');document.getElementById('lname').value=n;const r=await api('/api/save',{name:n,content:'DESK-LEDGER\n'+JSON.stringify(L)});if(r.ok){lrefresh();stat('Saved '+n);}else stat('Save failed: '+(r.error||'unknown'));}catch(e){stat('Save failed: '+e);}}
+async function lload(){const n=pick('lfiles','ledger');if(n)lloadN(n);}
+async function lloadN(n){try{const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){let c=r.content;if(c.indexOf('DESK-LEDGER\n')===0)c=c.slice(12);try{L=JSON.parse(c);}catch(_){L={};}build();for(const[id,v]of Object.entries(L)){const el=document.querySelector('input[data-id="'+id+'"]');if(el){el.value=v;el.classList.toggle('fx',v[0]==='=');}}recalc();document.getElementById('lname').value=n;stat('Opened '+n);}else stat('Not found');}catch(e){stat('Open failed: '+e);}}
 function lcsv(d){if(d==='out'){let s='';for(let r=1;r<=RC;r++){const row=[];for(let c=0;c<CC;c++){const id=col(c)+r,raw=L[id]||'';row.push(raw[0]==='='?calc(raw.slice(1)):raw);}while(row.length&&row[row.length-1]==='')row.pop();if(row.length)s+=row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')+'\n';}dl(document.getElementById('lname').value.replace(/\.\w+$/,'')+'.csv',s,'text/csv');}else document.getElementById('csvfile').click();}
 function limport(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{L={};const rows=rd.result.split(/\r?\n/);rows.forEach((line,r)=>{if(!line.trim())return;line.split(',').forEach((cell,c)=>{cell=cell.replace(/^"|"$/g,'').replace(/""/g,'"');if(cell)L[col(c)+(r+1)]=cell;});});build();for(const[id,v]of Object.entries(L)){const el=document.querySelector('input[data-id="'+id+'"]');if(el)el.value=v;}recalc();stat('Imported '+f.name);};rd.readAsText(f);inp.value='';}
 /* ---------- STAGE ---------- */
@@ -181,10 +183,16 @@ async function simg(i){const q=prompt('Search pictures for slide '+(i+1)+':','')
 function sadd(){S.push({t:'New slide',b:''});srender();}
 function sdel(i){if(S.length>1){S.splice(i,1);srender();}}
 function snew(){if(confirm('Discard deck?')){S=[{t:'',b:''}];srender();}}
-async function ssave(){const n=ext(document.getElementById('sname').value,'stage.json');document.getElementById('sname').value=n;await api('/api/save',{name:n,content:JSON.stringify(S)});srefresh();stat('Saved '+n);}
-async function sload(){const n=pick('sfiles','stage.json');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){try{S=JSON.parse(r.content);}catch(_){}document.getElementById('sname').value=n;srender();stat('Opened '+n);}else stat('Not found');}
+async function ssave(){stat('Saving…');try{const n=ext(document.getElementById('sname').value,'stage');document.getElementById('sname').value=n;const r=await api('/api/save',{name:n,content:'DESK-STAGE\n'+JSON.stringify(S)});if(r.ok){srefresh();stat('Saved '+n);}else stat('Save failed: '+(r.error||'unknown'));}catch(e){stat('Save failed: '+e);}}
+async function sload(){const n=pick('sfiles','stage');if(n)sloadN(n);}
+async function sloadN(n){try{const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){let c=r.content;if(c.indexOf('DESK-STAGE\n')===0)c=c.slice(11);try{S=JSON.parse(c);}catch(_){}document.getElementById('sname').value=n;srender();stat('Opened '+n);}else stat('Not found');}catch(e){stat('Open failed: '+e);}}
 function spresent(){si=0;pshow();document.getElementById('present').classList.add('show');}
 function pshow(){document.getElementById('pTitle').textContent=S[si].t;document.getElementById('pBody').textContent=S[si].b;const im=document.getElementById('pImg');if(S[si].img){im.src=S[si].img;im.style.display='block';}else{im.removeAttribute('src');im.style.display='none';}}
+/* ---------- deep link: ?open=file opens it in the right app ---------- */
+(function(){const q=new URLSearchParams(location.search).get('open');if(!q)return;const n=q.toLowerCase();
+if(/\.quill\.html?$/.test(n)){tab('Q');qloadN(q);}
+else if(/\.ledger(\.json)?$/.test(n)){tab('L');lloadN(q);}
+else if(/\.stage(\.json)?$/.test(n)){tab('S');sloadN(q);}})();
 addEventListener('keydown',e=>{const p=document.getElementById('present');if(!p.classList.contains('show'))return;if(e.key==='ArrowRight'){si=Math.min(S.length-1,si+1);pshow();}if(e.key==='ArrowLeft'){si=Math.max(0,si-1);pshow();}if(e.key==='Escape')p.classList.remove('show');});
 srender();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}

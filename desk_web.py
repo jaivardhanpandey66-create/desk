@@ -339,8 +339,18 @@ class Handler(BaseHTTPRequestHandler):
             fp = _safe_path(name)
             if not fp:
                 return self._json({"error": "bad name"}, 400)
+            content = data.get("content", "")
+            # Stamp OS-detectable markers so the file manager opens each
+            # file in the right DESK app (also fixes AI-created files)
+            low = name.lower()
+            if low.endswith(".ledger") and not content.startswith("DESK-LEDGER\n"):
+                content = "DESK-LEDGER\n" + content
+            elif low.endswith(".stage") and not content.startswith("DESK-STAGE\n"):
+                content = "DESK-STAGE\n" + content
+            elif low.endswith(".quill.html") and "DESK-QUILL" not in content[:60]:
+                content = "<!--DESK-QUILL-->" + content
             with open(fp, "w") as f:
-                f.write(data.get("content", ""))
+                f.write(content)
             return self._json({"ok": True, "name": name})
         if self.path == "/api/delete":
             fp = _safe_path((data.get("name") or "").strip())

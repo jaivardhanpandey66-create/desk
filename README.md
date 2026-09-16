@@ -14,12 +14,12 @@ Zero dependencies. Pure Python standard library + one HTML file.
 ## Apps
 
 - **Quill** — rich text (bold/italic/lists/headings), word count, saves to
-  `~/Documents/Desk/*.quill.html`, exports HTML/TXT.
+  `~/Documents/Desk/*.quill`, exports HTML/TXT.
 - **Ledger** — 26×50 grid, formulas (`=A1+B2`, `=SUM(A1:A5)`,
   `=AVERAGE(A1:A5)`), CSV import/export, saves `*.ledger`.
 - **Stage** — slide decks, fullscreen present mode (←/→), saves `*.stage`.
 
-Double-click any `.quill.html` / `.ledger` / `.stage` file to open it in
+Double-click any `.quill` / `.ledger` / `.stage` file to open it in
 DESK (registered with the OS on `./install.sh`).
 
 ## Pictures

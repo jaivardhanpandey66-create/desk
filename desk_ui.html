@@ -77,7 +77,7 @@ table.grid td input.fx{color:#0b3d91}
 <span class="hint">Free sources: Wikimedia Commons + Openverse. Google plugs in with a GOOGLE_CSE_KEY.</span>
 </div>
 <div class="row">
-<input type="text" id="qname" placeholder="document name…" value="untitled.quill.html">
+<input type="text" id="qname" placeholder="document name…" value="untitled.quill">
 <button onclick="qsave()">💾 Save</button>
 <select id="qfiles" title="Quill documents"></select>
 <button onclick="qrefresh()">⟳</button>
@@ -131,8 +131,8 @@ function stat(m){document.getElementById('stat').textContent=m;}
 /* ---------- files: extensions + per-app browser ---------- */
 function ext(name,def){name=(name||'').trim()||'untitled';if(!/\.[A-Za-z0-9]{1,8}$/.test(name))name+='.'+def;return name;}
 async function flist(sel,rx){try{const r=await api('/api/files');const s=document.getElementById(sel);const cur=s.value;s.innerHTML='';(r.files||[]).filter(f=>rx.test(f)).forEach(f=>{const o=document.createElement('option');o.value=o.textContent=f;s.appendChild(o);});if(cur&&[...s.options].some(o=>o.value===cur))s.value=cur;}catch(_){}}
-function refreshAll(){flist('qfiles',/\.quill\.html?$/i);flist('lfiles',/\.ledger(\.json)?$/i);flist('sfiles',/\.stage(\.json)?$/i);}
-function qrefresh(){flist('qfiles',/\.quill\.html?$/i);}function lrefresh(){flist('lfiles',/\.ledger(\.json)?$/i);}function srefresh(){flist('sfiles',/\.stage(\.json)?$/i);}
+function refreshAll(){flist('qfiles',/\.quill(\.html)?$/i);flist('lfiles',/\.ledger(\.json)?$/i);flist('sfiles',/\.stage(\.json)?$/i);}
+function qrefresh(){flist('qfiles',/\.quill(\.html)?$/i);}function lrefresh(){flist('lfiles',/\.ledger(\.json)?$/i);}function srefresh(){flist('sfiles',/\.stage(\.json)?$/i);}
 function pick(sel,def){const s=document.getElementById(sel);if(s.value)return s.value;const n=prompt('File name:');return n?ext(n,def):'';}
 refreshAll();
 /* ---------- zoom ---------- */
@@ -148,8 +148,8 @@ function fmt(c,v){document.execCommand(c,false,v||null);quill.focus();qcount();}
 function qcount(){document.getElementById('qcount').textContent=(quill.innerText.trim().split(/\s+/).filter(Boolean).length||0)+' words';}
 quill.addEventListener('input',qcount);qcount();
 function qnew(){if(confirm('Discard current document?')){quill.innerHTML='<h1>Untitled document</h1><p></p>';qcount();}}
-async function qsave(){stat('Saving…');try{const n=ext(document.getElementById('qname').value,'quill.html');document.getElementById('qname').value=n;let html=quill.innerHTML;if(html.indexOf('DESK-QUILL')!==0)html='<!--DESK-QUILL-->'+html;const r=await api('/api/save',{name:n,content:html});if(r.ok){qrefresh();stat('Saved '+n);}else stat('Save failed: '+(r.error||'unknown'));}catch(e){stat('Save failed: '+e);}}
-async function qload(){const n=pick('qfiles','quill.html')||document.getElementById('qname').value;if(n)qloadN(n);}
+async function qsave(){stat('Saving…');try{const n=ext(document.getElementById('qname').value,'quill');document.getElementById('qname').value=n;let html=quill.innerHTML;if(html.indexOf('DESK-QUILL')!==0)html='<!--DESK-QUILL-->'+html;const r=await api('/api/save',{name:n,content:html});if(r.ok){qrefresh();stat('Saved '+n);}else stat('Save failed: '+(r.error||'unknown'));}catch(e){stat('Save failed: '+e);}}
+async function qload(){const n=pick('qfiles','quill')||document.getElementById('qname').value;if(n)qloadN(n);}
 async function qloadN(n){try{const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){quill.innerHTML=r.content;document.getElementById('qname').value=n;qcount();stat('Opened '+n);}else stat('Not found: '+n);}catch(e){stat('Open failed: '+e);}}
 function qexport(t){const n=document.getElementById('qname').value.replace(/\.\w+$/,'');if(t==='html')dl(n+'.html','<!DOCTYPE html><meta charset=utf8><title>'+n+'</title>'+quill.innerHTML,'text/html');else dl(n+'.txt',quill.innerText);}
 async function qimage(){const box=document.getElementById('imgpick');box.style.display=box.style.display==='none'?'block':'none';if(box.style.display==='block')imggo();}

@@ -347,7 +347,7 @@ class Handler(BaseHTTPRequestHandler):
                 content = "DESK-LEDGER\n" + content
             elif low.endswith(".stage") and not content.startswith("DESK-STAGE\n"):
                 content = "DESK-STAGE\n" + content
-            elif low.endswith(".quill.html") and "DESK-QUILL" not in content[:60]:
+            elif low.endswith(".quill") and "DESK-QUILL" not in content[:60]:
                 content = "<!--DESK-QUILL-->" + content
             with open(fp, "w") as f:
                 f.write(content)

@@ -1,1 +1,1 @@
-{"name": "DESK Office", "short_name": "DESK", "description": "Holographic office suite — Quill, Ledger, Stage.", "start_url": "/", "display": "standalone", "background_color": "#04101f", "theme_color": "#00f7ff", "icons": [{"src": "/desk.svg", "sizes": "any", "type": "image/svg+xml"}]}
+{"name": "DESK Office", "short_name": "DESK", "description": "Holographic office suite — Quill, Ledger, Stage.", "start_url": "/", "display": "standalone", "background_color": "#ffffff", "theme_color": "#2c7be5", "icons": [{"src": "/desk.svg", "sizes": "any", "type": "image/svg+xml"}]}

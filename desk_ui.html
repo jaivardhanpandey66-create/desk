@@ -48,6 +48,9 @@ table.grid td input.fx{color:#0b3d91}
 <button id="tS" onclick="tab('S')">◉ Stage</button>
 </nav>
 <span class="hint" id="stat"></span>
+<span style="flex:1"></span>
+<span class="hint">🔍 <button onclick="zoom(-10)">−</button> <span id="zoomv">100%</span> <button onclick="zoom(10)">+</button></span>
+<span class="hint">v<span id="ver">?</span> <button onclick="doupdate()">⬆ Update</button></span>
 </header>
 <main>
 <!-- QUILL -->
@@ -69,6 +72,7 @@ table.grid td input.fx{color:#0b3d91}
 </div>
 <div id="imgpick" style="display:none;border:1px solid #a0a0a0;border-radius:4px;padding:10px;margin-bottom:8px;background:#ffffff">
 <div class="row"><input type="text" id="imgq" placeholder="search pictures…"><button onclick="imggo()">Search</button><button onclick="document.getElementById('imgpick').style.display='none'">✕</button></div>
+<div class="row"><input type="text" id="genq" placeholder="or describe a picture for AI…"><button onclick="imggen()">✨ Generate</button><span class="hint" id="genstat"></span></div>
 <div id="imgres" style="display:flex;gap:8px;flex-wrap:wrap"></div>
 <span class="hint">Free sources: Wikimedia Commons + Openverse. Google plugs in with a GOOGLE_CSE_KEY.</span>
 </div>
@@ -118,6 +122,13 @@ function tab(t){for(const k of['Q','L','S']){document.getElementById('tab'+k).cl
 async function api(path,body){const o=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};const r=await fetch(path,o);return r.json();}
 function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'text/plain'}));a.download=name;a.click();}
 function stat(m){document.getElementById('stat').textContent=m;}
+/* ---------- zoom ---------- */
+let ZOOM=100;
+function zoom(d){ZOOM=Math.min(200,Math.max(50,ZOOM+d));document.querySelector('main').style.zoom=ZOOM+'%';document.getElementById('zoomv').textContent=ZOOM+'%';}
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='='){e.preventDefault();zoom(10);}if((e.ctrlKey||e.metaKey)&&e.key==='-'){e.preventDefault();zoom(-10);}if((e.ctrlKey||e.metaKey)&&e.key==='0'){e.preventDefault();ZOOM=100;document.querySelector('main').style.zoom='100%';document.getElementById('zoomv').textContent='100%';}});
+/* ---------- version + update ---------- */
+(async function(){try{const v=await api('/api/version');document.getElementById('ver').textContent=v.version||'?';}catch(_){}})();
+async function doupdate(){if(!confirm('Update DESK from GitHub? The app restarts after.'))return;stat('Updating…');try{const r=await api('/api/update',{});stat((r.log||[]).join(' · '));alert('Update done. Restart the app.');}catch(e){stat('Update failed: '+e);}}
 /* ---------- QUILL ---------- */
 const quill=document.getElementById('quill');
 function fmt(c,v){document.execCommand(c,false,v||null);quill.focus();qcount();}
@@ -128,7 +139,9 @@ async function qsave(){const n=document.getElementById('qname').value;await api(
 async function qload(){const n=prompt('Open file name:','untitled.quill.html');if(!n)return;const r=await api('/api/open?name='+encodeURIComponent(n));if(r.content!==undefined){quill.innerHTML=r.content;document.getElementById('qname').value=n;qcount();stat('Opened '+n);}else stat('Not found: '+n);}
 function qexport(t){const n=document.getElementById('qname').value.replace(/\.\w+$/,'');if(t==='html')dl(n+'.html','<!DOCTYPE html><meta charset=utf8><title>'+n+'</title>'+quill.innerHTML,'text/html');else dl(n+'.txt',quill.innerText);}
 async function qimage(){const box=document.getElementById('imgpick');box.style.display=box.style.display==='none'?'block':'none';if(box.style.display==='block')imggo();}
-async function imggo(){const q=document.getElementById('imgq').value||'nature';const r=await api('/api/images?q='+encodeURIComponent(q)+'&n=8');const d=document.getElementById('imgres');d.innerHTML='';(r.results||[]).forEach(im=>{const t=document.createElement('img');t.src=im.url;t.title=im.title||'';t.style.cssText='width:120px;height:90px;object-fit:cover;cursor:pointer;border-radius:5px;border:1px solid var(--cy)';t.onclick=()=>{quill.focus();document.execCommand('insertImage',false,im.url);d.innerHTML='';document.getElementById('imgpick').style.display='none';};d.appendChild(t);});if(!(r.results||[]).length)d.textContent='No pictures found.';}
+function px(u){return u.indexOf('data:')===0?u:'/api/img?url='+encodeURIComponent(u);}
+async function imggo(){const q=document.getElementById('imgq').value||'nature';const r=await api('/api/images?q='+encodeURIComponent(q)+'&n=8');const d=document.getElementById('imgres');d.innerHTML='';(r.results||[]).forEach(im=>{const t=document.createElement('img');t.src=px(im.url);t.title=im.title||'';t.style.cssText='width:120px;height:90px;object-fit:cover;cursor:pointer;border-radius:3px;border:1px solid #a0a0a0';t.onclick=()=>{quill.focus();document.execCommand('insertImage',false,px(im.url));d.innerHTML='';document.getElementById('imgpick').style.display='none';};d.appendChild(t);});if(!(r.results||[]).length)d.textContent='No pictures found.';}
+async function imggen(){const q=document.getElementById('genq').value.trim();if(!q){alert('Describe the picture first.');return;}const st=document.getElementById('genstat');st.textContent='Generating… (30-90s)';try{const r=await api('/api/generate',{prompt:q});if(r.image){quill.focus();document.execCommand('insertImage',false,r.image);st.textContent='Inserted.';document.getElementById('imgpick').style.display='none';}else{st.textContent='Failed: '+(r.error||'unknown');}}catch(e){st.textContent='Failed: '+e;}}
 /* ---------- LEDGER ---------- */
 const RC=50,CC=26;let L={};
 function col(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
@@ -151,7 +164,7 @@ function limport(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader(
 /* ---------- STAGE ---------- */
 let S=[{t:'DESK Stage',b:'Press ▶ Present to begin.\nClick or use arrow keys.'}],si=0;
 function srender(){const d=document.getElementById('slides');d.innerHTML='';S.forEach((s,i)=>{const dv=document.createElement('div');dv.className='slide';dv.innerHTML='<b>Slide '+(i+1)+'</b> <button onclick="sdel('+i+')">✕</button><input value="'+(s.t||'').replace(/"/g,'&quot;')+'" oninput="S['+i+'].t=this.value" placeholder="Title"><textarea rows="4" oninput="S['+i+'].b=this.value" placeholder="Body">'+(s.b||'')+'</textarea><div class="row"><input placeholder="image URL (optional)" value="'+((s.img||'').replace(/"/g,'&quot;'))+'" oninput="S['+i+'].img=this.value" style="flex:1"><button onclick="simg('+i+')">🖼 Search</button></div>';d.appendChild(dv);});}
-async function simg(i){const q=prompt('Search pictures for slide '+(i+1)+':','');if(!q)return;const r=await api('/api/images?q='+encodeURIComponent(q)+'&n=1');if(r.results&&r.results[0]){S[i].img=r.results[0].url;srender();stat('Image added: '+(r.results[0].title||''));}else stat('No pictures found.');}
+async function simg(i){const q=prompt('Search pictures for slide '+(i+1)+':','');if(!q)return;const r=await api('/api/images?q='+encodeURIComponent(q)+'&n=1');if(r.results&&r.results[0]){S[i].img=px(r.results[0].url);srender();stat('Image added: '+(r.results[0].title||''));}else stat('No pictures found.');}
 function sadd(){S.push({t:'New slide',b:''});srender();}
 function sdel(i){if(S.length>1){S.splice(i,1);srender();}}
 function snew(){if(confirm('Discard deck?')){S=[{t:'',b:''}];srender();}}

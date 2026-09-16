@@ -22,14 +22,23 @@ Zero dependencies. Pure Python standard library + one HTML file.
 ## Pictures
 
 Quill (🖼 button) and Stage (🖼 per slide) search free images via
-`GET /api/images?q=...`:
+`GET /api/images?q=...`. Pictures load through an on-server proxy
+(`GET /api/img?url=...`, cached in `~/.cache/desk/img`) so hotlink-blocked
+images display correctly. AI pictures via ✨ Generate (Gemini key in
+`~/.config/gemini/key`, never committed).
 
 | Source | Key needed? |
 |---|---|
 | Wikimedia Commons | No — built in |
 | Openverse (Flickr & friends) | No — built in |
+| Gemini AI generation | Yes — key file (free quota is small; enable billing for more) |
 | Google Custom Search | Optional — set `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX` |
 | Pinterest | Not possible — Pinterest offers no public search API |
+
+## Zoom & updates
+
+Header has 🔍 zoom (−/+/Ctrl+=/−/0) and ⬆ Update (pulls latest from GitHub
+into the installed copy — restart after).
 
 ## Files
 

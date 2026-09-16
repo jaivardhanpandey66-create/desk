@@ -129,7 +129,7 @@ async function api(path,body){const o=body?{method:'POST',headers:{'Content-Type
 function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'text/plain'}));a.download=name;a.click();}
 function stat(m){document.getElementById('stat').textContent=m;}
 /* ---------- files: extensions + per-app browser ---------- */
-function ext(name,def){name=(name||'').trim()||'untitled';if(!/\.[A-Za-z0-9]{1,8}$/.test(name))name+='.'+def;return name;}
+function ext(name,def){name=(name||'').trim()||'untitled';name=name.replace(/\.(quill\.html|ledger\.json|stage\.json)$/i,'').replace(/\.json$/i,'');if(new RegExp('\\.'+def+'$','i').test(name))return name;if(!/\.[A-Za-z0-9]{1,8}$/.test(name))return name+'.'+def;return name;}
 async function flist(sel,rx){try{const r=await api('/api/files');const s=document.getElementById(sel);const cur=s.value;s.innerHTML='';(r.files||[]).filter(f=>rx.test(f)).forEach(f=>{const o=document.createElement('option');o.value=o.textContent=f;s.appendChild(o);});if(cur&&[...s.options].some(o=>o.value===cur))s.value=cur;}catch(_){}}
 function refreshAll(){flist('qfiles',/\.quill(\.html)?$/i);flist('lfiles',/\.ledger(\.json)?$/i);flist('sfiles',/\.stage(\.json)?$/i);}
 function qrefresh(){flist('qfiles',/\.quill(\.html)?$/i);}function lrefresh(){flist('lfiles',/\.ledger(\.json)?$/i);}function srefresh(){flist('sfiles',/\.stage(\.json)?$/i);}
